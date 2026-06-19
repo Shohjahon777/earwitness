@@ -23,3 +23,6 @@ pipeline/out
 # os
 .DS_Store
 Thumbs.db
+
+.vercel
+.env*

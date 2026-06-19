@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { CalendarDays, Info, Radio } from "lucide-react";
+import { CalendarDays, Info, Radio, Store } from "lucide-react";
 import { ModeSwitcher } from "./ModeSwitcher";
 import { MobileDock } from "./MobileDock";
+import { CoinBalance } from "./gamification/CoinBalance";
+import { SessionBoot } from "./gamification/SessionBoot";
+import { FirstRunBanner } from "./gamification/FirstRunBanner";
 
 interface AppChromeProps {
   mode?: "arena" | "golden-ears";
@@ -20,9 +23,13 @@ export function AppChrome({ mode = "arena", mobileDock = true, children }: AppCh
         </Link>
         <div className="nav-actions">
           <ModeSwitcher mode={mode} />
+          <CoinBalance />
           <Link className="daily-link" href="/daily">
             <CalendarDays size={16} aria-hidden="true" />
             <span>Daily challenge</span>
+          </Link>
+          <Link className="icon-button" href="/shop" aria-label="Open shop">
+            <Store size={18} aria-hidden="true" />
           </Link>
           <Link className="icon-button" href="/about" aria-label="How Earwitness works">
             <Info size={18} aria-hidden="true" />
@@ -32,6 +39,8 @@ export function AppChrome({ mode = "arena", mobileDock = true, children }: AppCh
           </Link>
         </div>
       </header>
+      <SessionBoot />
+      <FirstRunBanner />
       {children}
       {mobileDock ? <MobileDock /> : null}
     </main>

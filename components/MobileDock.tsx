@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, Gauge, Radio, Sparkles } from "lucide-react";
+import { CalendarDays, Gauge, Radio, Sparkles, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/", label: "Arena", icon: Gauge, exact: true },
   { href: "/golden-ears", label: "Golden", icon: Sparkles },
   { href: "/daily", label: "Daily", icon: CalendarDays },
-  { href: "/leaderboard", label: "Board", icon: Radio }
+  { href: "/leaderboard", label: "Board", icon: Radio },
+  { href: "/profile", label: "You", icon: User }
 ];
 
 export function MobileDock() {

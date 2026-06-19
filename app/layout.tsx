@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { GeistMono } from "geist/font/mono";
+import { cookies } from "next/headers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,11 +25,13 @@ export const viewport: Viewport = {
   themeColor: "#14131A"
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
+  // Apply the user's equipped cosmetic theme server-side to avoid a flash on load.
+  const theme = (await cookies()).get("ew_theme")?.value ?? "booth";
   return (
-    <html lang="en">
+    <html lang="en" data-theme={theme}>
       <body className={GeistMono.variable}>{children}</body>
     </html>
   );

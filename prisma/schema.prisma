@@ -77,13 +77,93 @@ model Session {
   votes         Int      @default(0)
   geVotes       Int      @default(0) // golden-ears votes
   geCorrect     Int      @default(0) // golden-ears correct guesses
-  streak        Int      @default(0) // current golden-ears streak
+  streak        Int      @default(0) // current golden-ears (answer) streak
   longestStreak Int      @default(0)
+
+  // --- gamification economy (level/rank are computed from xp, never stored) ---
+  coins         Int      @default(0) // spendable "credits"
+  xp            Int      @default(0) // lifetime "signal" → drives Ear Rank
+
+  // --- daily-login streak (distinct from the answer streak above) ---
+  lastLoginDate      String? // YYYY-MM-DD (UTC) of last login-bonus claim
+  loginStreak        Int     @default(0)
+  longestLoginStreak Int     @default(0)
+
+  // --- consumables + cosmetics ---
+  freezesOwned  Int      @default(0) // streak-freeze items
+  hintsOwned    Int      @default(0) // golden-ears hint credits
+  theme         String   @default("booth") // selected cosmetic theme
+  ownedThemes   String[] @default(["booth"])
+
+  // --- Ear Engine: Glicko-2 rating of the user's "ear" (golden-ears skill) ---
+  earRating     Float    @default(1500) // μ on the rating scale
+  earRd         Float    @default(350)  // rating deviation (uncertainty)
+  earVol        Float    @default(0.06) // volatility σ
+
+  // --- pity timer: votes since the last 2× "signal bonus" ---
+  bonusDry      Int      @default(0)
 
   votesCast     Vote[]
   dailyResults  DailyResult[]
+  achievements  Achievement[]
+  quests        QuestProgress[]
+  coinLedger    CoinLedger[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// Per-AI-stack "deception" rating (Glicko-2): how convincingly it imitates a human in
+// golden-ears. The opponent the user's ear plays against each golden-ears round.
+model StackDeception {
+  stackId   String   @id
+  rating    Float    @default(1500)
+  rd        Float    @default(350)
+  vol       Float    @default(0.06)
+  games     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+// Tagged coin faucet/sink events — powers the live economy panel on /system.
+// Positive delta = faucet (earned), negative = sink (spent).
+model CoinLedger {
+  id        String   @id @default(cuid())
+  sessionId String
+  delta     Int
+  source    String // vote | bonus | jackpot | quest | achievement | login | daily | purchase
+  createdAt DateTime @default(now())
+
+  session   Session  @relation(fields: [sessionId], references: [id])
+
+  @@index([source])
+  @@index([createdAt])
+}
+
+// One row per unlocked badge. Definitions live in code (lib/server/gamification.ts).
+model Achievement {
+  id            String   @id @default(cuid())
+  sessionId     String
+  achievementId String // matches a definition id in code
+  unlockedAt    DateTime @default(now())
+
+  session       Session  @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, achievementId])
+}
+
+// Per-day progress toward a quest. Quest defs are deterministic-by-date and live in code.
+model QuestProgress {
+  id        String  @id @default(cuid())
+  sessionId String
+  date      String // YYYY-MM-DD (UTC)
+  questId   String
+  progress  Int     @default(0)
+  target    Int
+  claimed   Boolean @default(false)
+
+  session   Session @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, date, questId])
+  @@index([sessionId, date])
 }
 
 // Persisted when a round is served, so submitVote can validate the pick and reveal authoritatively.

@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { getDaily, submitDaily } from "@/lib/api";
+import { getDaily, submitDaily, type DailyResultPayload } from "@/lib/api";
 import { countdownText } from "@/lib/format";
 import type { DailyAnswer, Round } from "@/lib/types";
+import { Coins } from "lucide-react";
+import { useSessionStore } from "@/lib/store";
 import { RoundProgress } from "@/components/RoundProgress";
 import { ShareCard } from "@/components/share/ShareCard";
 import { RoundExperience } from "@/components/arena/RoundExperience";
+import { AchievementToast } from "@/components/gamification/AchievementToast";
 
 export function DailyChallenge() {
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -15,9 +18,10 @@ export function DailyChallenge() {
   const [alreadyDone, setAlreadyDone] = useState(false);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<DailyAnswer[]>([]);
-  const [result, setResult] = useState<{ score: number; percentile: number; shareId: string } | null>(null);
+  const [result, setResult] = useState<DailyResultPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const applyDailyResult = useSessionStore((state) => state.applyDailyResult);
 
   useEffect(() => {
     let alive = true;
@@ -65,6 +69,7 @@ export function DailyChallenge() {
       return;
     }
     const submitted = await submitDaily(answers);
+    applyDailyResult(submitted);
     setResult(submitted);
   }
 
@@ -96,6 +101,15 @@ export function DailyChallenge() {
           <p className="muted" style={{ margin: "8px 0 0" }}>
             Come back in {countdownText(resetsAt)} for the next fixed set.
           </p>
+          {result?.coinsEarned ? (
+            <div className="reward-burst" style={{ marginTop: 12 }}>
+              <span className="reward-chip reward-coins">
+                <Coins size={15} aria-hidden="true" /> +{result.coinsEarned}
+              </span>
+              {result.xpEarned ? <span className="reward-chip reward-xp">+{result.xpEarned} signal</span> : null}
+              {result.levelUp ? <span className="reward-chip reward-levelup">Rank up — {result.levelUp.rank}!</span> : null}
+            </div>
+          ) : null}
         </div>
         <ShareCard data={shareData} />
         <div style={{ display: "grid", gap: 10 }}>
@@ -106,6 +120,7 @@ export function DailyChallenge() {
             Challenge a friend
           </Link>
         </div>
+        <AchievementToast achievements={result?.achievementsUnlocked} />
       </section>
     );
   }

@@ -14,6 +14,7 @@ import { Toast } from "@/components/Toast";
 import { VoteBar } from "@/components/VoteBar";
 import { ClipCard } from "./ClipCard";
 import { RevealPanel } from "./RevealPanel";
+import { HintButton } from "@/components/gamification/HintButton";
 
 export function RoundExperience({
   mode,
@@ -37,7 +38,7 @@ export function RoundExperience({
   const [pick, setPick] = useState<Pick | null>(null);
   const [result, setResult] = useState<VoteResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const setSession = useSessionStore((state) => state.setSession);
+  const applyVoteResult = useSessionStore((state) => state.applyVoteResult);
   const mock = typeof window === "undefined" ? null : readMockFlag();
 
   const loadRound = useCallback(async () => {
@@ -89,7 +90,7 @@ export function RoundExperience({
       try {
         const nextResult = await submitVote(round.id, nextPick);
         setResult(nextResult);
-        setSession(nextResult.session);
+        applyVoteResult(nextResult);
         onDailyAnswer?.({ roundId: round.id, pick: nextPick, correct: nextResult.correct });
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "Vote failed. Try again.");
@@ -98,7 +99,7 @@ export function RoundExperience({
         setSubmitting(false);
       }
     },
-    [onDailyAnswer, ready, round, setSession]
+    [onDailyAnswer, ready, round, applyVoteResult]
   );
 
   const next = useCallback(() => {
@@ -157,6 +158,7 @@ export function RoundExperience({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <ScenarioChip label={round.scenario.label} />
           {typeof roundIndex === "number" ? <span className="font-mono muted">Round {roundIndex + 1}</span> : null}
+          {mode === "golden-ears" && !result ? <HintButton roundId={round.id} /> : null}
         </div>
         <ClipCard
           channel="A"

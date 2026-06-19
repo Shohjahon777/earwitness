@@ -5,9 +5,25 @@
 //   • Mock:  the in-memory fixtures in ./mock-api, used when a ?mock= flag is present or
 //            NEXT_PUBLIC_USE_MOCKS=1 is set, so every loading/error/empty/offline/done state
 //            stays reachable in development without a database.
-import type { DailyAnswer, Dimension, LeaderboardRow, Me, Mode, Pick, Round, ShareCardData, VoteResult } from "./types";
+import type {
+  DailyAnswer,
+  DailyResultPayload,
+  Dimension,
+  LeaderboardRow,
+  Me,
+  Mode,
+  Pick,
+  Round,
+  ShareCardData,
+  Shop,
+  ShopPurchaseResult,
+  SystemStats,
+  VoteResult,
+} from "./types";
 import { readMockFlag } from "./mock-flags";
 import * as mock from "./mock-api";
+
+export type { DailyResultPayload, ShopPurchaseResult } from "./types";
 
 function useMock(): boolean {
   if (process.env.NEXT_PUBLIC_USE_MOCKS === "1") return true;
@@ -45,9 +61,7 @@ export async function getDaily(): Promise<{ rounds: Round[]; alreadyDone: boolea
   return http("/api/daily");
 }
 
-export async function submitDaily(
-  answers: DailyAnswer[]
-): Promise<{ score: number; percentile: number; shareId: string }> {
+export async function submitDaily(answers: DailyAnswer[]): Promise<DailyResultPayload> {
   if (useMock()) return mock.submitDaily(answers);
   return http("/api/daily", { method: "POST", body: JSON.stringify({ answers }) });
 }
@@ -70,4 +84,30 @@ export async function getMe(): Promise<Me> {
 export async function getShareCard(id: string): Promise<ShareCardData> {
   if (useMock()) return mock.getShareCard(id);
   return http<ShareCardData>(`/api/share/${encodeURIComponent(id)}`);
+}
+
+// ---- shop / economy ----
+export async function getShop(): Promise<Shop> {
+  if (useMock()) return mock.getShop();
+  return http<Shop>("/api/shop");
+}
+
+export async function purchaseItem(itemId: string): Promise<ShopPurchaseResult> {
+  if (useMock()) return mock.purchaseItem(itemId);
+  return http<ShopPurchaseResult>("/api/shop/purchase", { method: "POST", body: JSON.stringify({ itemId }) });
+}
+
+export async function equipTheme(theme: string): Promise<{ theme: string; ownedThemes: string[] }> {
+  if (useMock()) return mock.equipTheme(theme);
+  return http("/api/shop/equip", { method: "POST", body: JSON.stringify({ theme }) });
+}
+
+export async function spendHint(roundId: string): Promise<{ tell: string; hintsOwned: number }> {
+  if (useMock()) return mock.spendHint(roundId);
+  return http("/api/hint", { method: "POST", body: JSON.stringify({ roundId }) });
+}
+
+export async function getSystemStats(): Promise<SystemStats> {
+  if (useMock()) return mock.getSystemStats();
+  return http<SystemStats>("/api/system");
 }

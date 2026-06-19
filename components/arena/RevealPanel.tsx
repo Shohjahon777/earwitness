@@ -4,6 +4,8 @@ import { CheckCircle2, Share2, XCircle } from "lucide-react";
 import Link from "next/link";
 import type { Channel, Pick, StackConfig, VoteResult } from "@/lib/types";
 import { StackChips } from "@/components/StackChips";
+import { RewardBurst } from "@/components/gamification/RewardBurst";
+import { AchievementToast } from "@/components/gamification/AchievementToast";
 
 export function RevealPanel({
   mode,
@@ -55,6 +57,26 @@ export function RevealPanel({
             </p>
           </div>
 
+          <RewardBurst
+            reward={result.reward}
+            levelUp={result.levelUp}
+            signalBits={result.signalBits}
+            bonusOdds={result.bonusOdds}
+            ear={result.ear}
+          />
+          {result.questsProgressed?.some((quest) => quest.completed) ? (
+            <div className="quest-reward-list" aria-label="Completed quests">
+              {result.questsProgressed
+                .filter((quest) => quest.completed)
+                .map((quest) => (
+                  <span className="reward-chip reward-quest" key={quest.id}>
+                    <CheckCircle2 size={14} aria-hidden="true" />
+                    {quest.label} +{quest.coins}
+                  </span>
+                ))}
+            </div>
+          ) : null}
+
           <div style={{ display: "grid", gap: 10 }}>
             <RevealStack channel="A" stack={result.reveal.A} />
             <RevealStack channel="B" stack={result.reveal.B} />
@@ -74,13 +96,16 @@ export function RevealPanel({
             <button className="primary-btn" onClick={onNext}>
               Next round
             </button>
-            <Link className="secondary-btn" href="/c/matchup-7f2" aria-label="Share this matchup">
-              <Share2 size={16} aria-hidden="true" />
-              Share
-            </Link>
+            {result.shareId ? (
+              <Link className="secondary-btn" href={`/c/${result.shareId}`} aria-label="Share this matchup">
+                <Share2 size={16} aria-hidden="true" />
+                Share
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>
+      <AchievementToast achievements={result.achievementsUnlocked} />
     </aside>
   );
 }
