@@ -26,18 +26,22 @@ type Manifest = {
   clips: { scenarioId: string; stackId: string; file: string; durationSec: number; transcript: unknown }[];
 };
 
+const blobAccess = process.env.BLOB_ACCESS === "private" ? "private" : "public";
+
 async function uploadClip(file: string): Promise<string> {
   const localPath = path.join(OUT, file);
   if (!existsSync(localPath)) throw new Error(`Missing rendered clip: ${file}. Run the pipeline first.`);
 
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     const data = await readFile(localPath);
-    const blob = await put(`clips/${file}`, data, {
-      access: "public",
+    const pathname = `clips/${file}`;
+    const blob = await put(pathname, data, {
+      access: blobAccess,
       contentType: "audio/wav",
       addRandomSuffix: false,
       allowOverwrite: true,
     });
+    if (blobAccess === "private") return `/api/blob/${pathname}`;
     return blob.url;
   }
 
@@ -53,12 +57,20 @@ async function main() {
     throw new Error("pipeline/out/manifest.json not found. Run `python pipeline/run.py all` first.");
   }
   const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as Manifest;
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set.");
 
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   const prisma = new PrismaClient({ adapter });
 
   console.log(`Seeding ${manifest.stacks.length} stacks, ${manifest.scenarios.length} scenarios, ${manifest.clips.length} clips`);
-  console.log(process.env.BLOB_READ_WRITE_TOKEN ? "→ uploading to Vercel Blob" : "→ no Blob token; copying to public/clips");
+  console.log(
+    process.env.BLOB_READ_WRITE_TOKEN
+      ? `→ uploading to Vercel Blob (${blobAccess})`
+      : "→ no Blob token; copying to public/clips"
+  );
+
+  const manifestStackIds = new Set(manifest.stacks.map((s) => s.id));
+  const manifestClipKeys = new Set(manifest.clips.map((c) => `${c.scenarioId}::${c.stackId}`));
 
   for (const s of manifest.stacks) {
     await prisma.stack.upsert({
@@ -90,6 +102,35 @@ async function main() {
       update: { blobUrl: url, durationSec: c.durationSec, transcript: c.transcript as object },
     });
     console.log(`  ✓ ${c.scenarioId} × ${c.stackId} → ${url}`);
+  }
+
+  const existingClips = await prisma.clip.findMany({ select: { id: true, scenarioId: true, stackId: true } });
+  const staleClipIds = existingClips
+    .filter((clip) => !manifestClipKeys.has(`${clip.scenarioId}::${clip.stackId}`))
+    .map((clip) => clip.id);
+
+  if (staleClipIds.length) {
+    const staleRounds = await prisma.round.findMany({
+      where: { OR: [{ clipAId: { in: staleClipIds } }, { clipBId: { in: staleClipIds } }] },
+      select: { id: true },
+    });
+    const staleRoundIds = staleRounds.map((round) => round.id);
+    if (staleRoundIds.length) {
+      await prisma.vote.deleteMany({ where: { roundId: { in: staleRoundIds } } });
+      await prisma.round.deleteMany({ where: { id: { in: staleRoundIds } } });
+    }
+    await prisma.clip.deleteMany({ where: { id: { in: staleClipIds } } });
+    console.log(`  pruned ${staleClipIds.length} stale clip rows`);
+  }
+
+  const staleStackIds = (await prisma.stack.findMany({ select: { id: true } }))
+    .map((stack) => stack.id)
+    .filter((id) => !manifestStackIds.has(id));
+  if (staleStackIds.length) {
+    await prisma.stackRating.deleteMany({ where: { stackId: { in: staleStackIds } } });
+    await prisma.stackDeception.deleteMany({ where: { stackId: { in: staleStackIds } } });
+    await prisma.stack.deleteMany({ where: { id: { in: staleStackIds } } });
+    console.log(`  pruned ${staleStackIds.length} stale stack rows`);
   }
 
   await prisma.$disconnect();

@@ -17,6 +17,9 @@ Pipeline per clip:
 
 from __future__ import annotations
 
+import os
+from types import SimpleNamespace
+
 import numpy as np
 
 import audio
@@ -29,10 +32,32 @@ CALLER_JITTER = 0.08
 # sized to fall inside a normal agent reply so the yield-vs-talk-over contrast is clean.
 TYPICAL_AGENT_LEAD_MS = 800
 
+# The caller uses a real (but different) voice from the agent when a key is present, else synth.
+# Default caller voice is "Domi" — distinct from the agent's "Rachel". Override with
+# ELEVENLABS_CALLER_VOICE_ID. Cached by line so we don't re-bill the same caller across stacks.
+_CALLER_CACHE: dict[str, np.ndarray] = {}
+
+
+def _caller_voice(text: str) -> np.ndarray:
+    if not text.strip():
+        return np.zeros(0, dtype=np.float32)
+    if text in _CALLER_CACHE:
+        return _CALLER_CACHE[text].copy()
+    profile = SimpleNamespace(
+        id="caller",
+        tts_provider="elevenlabs" if os.environ.get("ELEVENLABS_API_KEY") else "synth",
+        eleven_voice_id=os.environ.get("ELEVENLABS_CALLER_VOICE_ID", "AZnzlk1XvdvUeBnXmlld"),  # Domi
+        voice_base_hz=CALLER_HZ,
+        voice_jitter=CALLER_JITTER,
+    )
+    out = tts.synthesize(text, profile)
+    _CALLER_CACHE[text] = out
+    return out.copy()
+
 
 def render(scenario, stack) -> tuple[np.ndarray, dict, float]:
     # 1. Fixed caller track ------------------------------------------------
-    caller_open = audio.synth_utterance(scenario.caller_open, CALLER_HZ, CALLER_JITTER)
+    caller_open = _caller_voice(scenario.caller_open)
     if scenario.noisy:
         caller_open = audio.add_noise(caller_open, snr_db=7.0)
     open_dur = audio.duration_s(caller_open)
@@ -44,7 +69,7 @@ def render(scenario, stack) -> tuple[np.ndarray, dict, float]:
     has_interjection = bool(scenario.caller_interjection.strip())
     interject_at = caller_endpoint + TYPICAL_AGENT_LEAD_MS / 1000 + scenario.interject_at_ms / 1000
     interjection = (
-        audio.synth_utterance(scenario.caller_interjection, CALLER_HZ, CALLER_JITTER)
+        _caller_voice(scenario.caller_interjection)
         if has_interjection else np.zeros(0, dtype=np.float32)
     )
     if scenario.noisy and has_interjection:

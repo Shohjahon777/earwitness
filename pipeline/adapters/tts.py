@@ -18,26 +18,28 @@ def synthesize(text: str, stack) -> np.ndarray:
 
     provider = getattr(stack, "tts_provider", "synth")
     if provider == "elevenlabs":
-        got = _elevenlabs(text)
+        got = _elevenlabs(text, getattr(stack, "eleven_voice_id", None))
         if got is not None:
             return got
+        print(f"  [tts] {stack.id}: ElevenLabs unavailable (no/invalid ELEVENLABS_API_KEY) → synth")
     elif provider == "piper":
         got = _piper(text)
         if got is not None:
             return got
+        print(f"  [tts] {stack.id}: Piper unavailable → synth")
 
     # Fallback: voice-ish synth tuned by the stack's pitch/jitter.
     return synth_utterance(text, stack.voice_base_hz, stack.voice_jitter)
 
 
-def _elevenlabs(text: str):
+def _elevenlabs(text: str, voice_id: str | None = None):
     key = os.environ.get("ELEVENLABS_API_KEY")
     if not key:
         return None
     try:
         import requests
 
-        voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")  # Rachel
+        voice_id = voice_id or os.environ.get("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")  # Rachel
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         resp = requests.post(
             url,

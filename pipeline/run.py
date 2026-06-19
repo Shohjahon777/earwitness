@@ -16,8 +16,32 @@ import json
 import os
 import sys
 
-import engine
-from config import SCENARIOS, STACKS
+
+def _load_env() -> None:
+    """Load the repo-root .env / .env.local into os.environ so the adapters see provider keys.
+    Python does not read .env automatically; without this, ELEVENLABS_API_KEY etc. are unset and
+    every stack silently falls back to the synth voice."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for name in (".env", ".env.local"):
+        path = os.path.join(root, name)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and value and key not in os.environ:
+                    os.environ[key] = value
+
+
+_load_env()
+
+import engine  # noqa: E402  (imported after env load so adapters pick up keys)
+from config import SCENARIOS, STACKS  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(__file__), "out")
 
