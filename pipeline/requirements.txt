@@ -1,0 +1,13 @@
+# Core (required) — the engine renders with just these.
+numpy>=1.26
+soundfile>=0.12
+
+# Loudness normalization to -16 LUFS (ITU-R BS.1770). Falls back to RMS if absent.
+pyloudnorm>=0.1.1
+
+# Real provider adapters (optional — each degrades to a local fallback if missing).
+requests>=2.31          # Vercel AI Gateway (LLM) + ElevenLabs (TTS)
+# faster-whisper>=1.0    # real STT  (uncomment to enable; large download)
+# silero-vad>=5.1        # real VAD  (needs torch)
+# torch>=2.2             # required by silero-vad
+# piper-tts              # local TTS (also needs a downloaded voice model via PIPER_MODEL)

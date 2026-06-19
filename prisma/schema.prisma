@@ -1,0 +1,186 @@
+// Earwitness data model.
+// Mirrors the UI contracts in lib/types.ts. The web app only does cheap CRUD +
+// ranking; all audio is rendered offline by the Python pipeline and cached in Vercel Blob.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// A deployable voice-agent stack (STT + LLM + TTS + turn handling). The thing we rank.
+// The "human agent" is modeled as a stack with isHuman = true (golden-ears only).
+model Stack {
+  id        String   @id
+  name      String
+  stt       String
+  llm       String
+  tts       String
+  turns     String
+  isHuman   Boolean  @default(false)
+
+  clips     Clip[]
+  ratings   StackRating[]
+  createdAt DateTime @default(now())
+}
+
+// A scripted conversation situation. `type` decides which leaderboard dimension a vote feeds.
+model Scenario {
+  id      String       @id
+  label   String // neutral, shown pre-vote (no spoilers)
+  insight String // one-line "why this matters", shown at reveal
+  type    ScenarioType
+
+  clips   Clip[]
+  rounds  Round[]
+}
+
+enum ScenarioType {
+  interrupt
+  pause
+  accent
+  clean
+}
+
+enum Mode {
+  arena
+  golden_ears
+}
+
+// One rendered clip = one (scenario x stack) recording, cached in Blob. The pairing mode
+// (arena vs golden-ears) is decided when two clips are matched into a Round, not here.
+model Clip {
+  id          String   @id @default(cuid())
+  scenarioId  String
+  stackId     String
+  blobUrl     String
+  durationSec Float
+  transcript  Json // timeline + who-said-what for the post-vote reveal
+
+  scenario    Scenario @relation(fields: [scenarioId], references: [id])
+  stack       Stack    @relation(fields: [stackId], references: [id])
+
+  roundsAsA   Round[]  @relation("ClipA")
+  roundsAsB   Round[]  @relation("ClipB")
+
+  createdAt   DateTime @default(now())
+
+  @@unique([scenarioId, stackId])
+}
+
+// Anonymous cookie session. Aggregates are cached so getMe / listeners reads stay O(1).
+model Session {
+  id            String   @id // cookie value
+  handle        String   @unique // "Listener-7F2"
+  votes         Int      @default(0)
+  geVotes       Int      @default(0) // golden-ears votes
+  geCorrect     Int      @default(0) // golden-ears correct guesses
+  streak        Int      @default(0) // current golden-ears streak
+  longestStreak Int      @default(0)
+
+  votesCast     Vote[]
+  dailyResults  DailyResult[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Persisted when a round is served, so submitVote can validate the pick and reveal authoritatively.
+model Round {
+  id           String   @id @default(cuid())
+  mode         Mode
+  scenarioId   String
+  clipAId      String
+  clipBId      String
+  humanChannel Channel? // golden-ears: which side is the human
+
+  scenario     Scenario @relation(fields: [scenarioId], references: [id])
+  clipA        Clip     @relation("ClipA", fields: [clipAId], references: [id])
+  clipB        Clip     @relation("ClipB", fields: [clipBId], references: [id])
+
+  votes        Vote[]
+  createdAt    DateTime @default(now())
+}
+
+enum Channel {
+  A
+  B
+}
+
+// Source of truth for ranking. One vote per (round, session).
+model Vote {
+  id           String       @id @default(cuid())
+  roundId      String
+  sessionId    String
+  pick         String // "A" | "B" | "tie"
+  correct      Boolean? // golden-ears only
+  scenarioType ScenarioType
+  mode         Mode
+
+  round        Round        @relation(fields: [roundId], references: [id])
+  session      Session      @relation(fields: [sessionId], references: [id])
+  createdAt    DateTime     @default(now())
+
+  @@unique([roundId, sessionId])
+  @@index([mode, scenarioType])
+}
+
+enum Dimension {
+  overall
+  naturalness
+  interaction
+}
+
+// Live Elo writes here per vote; the Bradley-Terry cron overwrites rating/CI/trend.
+model StackRating {
+  stackId   String
+  dimension Dimension
+  rating    Float     @default(1200)
+  ratingCI  Float     @default(0)
+  votes     Int       @default(0)
+  trend     Json      @default("[]") // recent rating sparkline
+
+  stack     Stack     @relation(fields: [stackId], references: [id])
+  updatedAt DateTime  @updatedAt
+
+  @@id([stackId, dimension])
+}
+
+// One row per (session, date). Enforces "already done today".
+model DailyResult {
+  id         String   @id @default(cuid())
+  sessionId  String
+  date       String // YYYY-MM-DD (UTC)
+  score      Int
+  percentile Int
+  answers    Json
+  shareId    String   @unique
+
+  session    Session  @relation(fields: [sessionId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([sessionId, date])
+  @@index([date])
+}
+
+// Tiny key/value for server bookkeeping (e.g. last Bradley–Terry recompute timestamp).
+// Lets the leaderboard self-heal without a cron — see lib/server/ranking.ts.
+model Meta {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// Snapshot written by submitVote/submitDaily; read by getShareCard + the OG image route.
+model ShareCard {
+  id         String   @id // shareId
+  handle     String
+  mode       String // "daily" | "golden-ears" | "matchup"
+  accuracy   Int
+  score      Int?
+  percentile Int?
+  streak     Int
+  tagline    String
+  createdAt  DateTime @default(now())
+}
