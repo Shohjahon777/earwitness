@@ -13,11 +13,21 @@ export interface StackConfig {
   isHuman?: boolean;
 }
 
+// One spoken turn in a clip. Speaker is neutral (caller/agent) so showing it pre-vote can't
+// reveal which stack a clip is — the words are already audible; this is just synced captions.
+export interface CaptionSegment {
+  speaker: "caller" | "agent";
+  start: number;
+  end: number;
+  text: string;
+}
+
 export interface Clip {
   id: string;
   url: string;
   durationSec: number;
   stack: StackConfig;
+  caption?: CaptionSegment[];
 }
 
 export interface Scenario {
@@ -39,7 +49,9 @@ export interface VoteResult {
   winnerChannel: Pick;
   correct?: boolean;
   shareId?: string;
-  reveal: { A: StackConfig; B: StackConfig; insight: string };
+  // outcomeA/outcomeB: the turn-handling verdict per channel ("yielded to the caller",
+  // "talked over the caller", …) — the payoff line shown only after voting.
+  reveal: { A: StackConfig; B: StackConfig; insight: string; outcomeA?: string; outcomeB?: string };
   session: { accuracy: number; streak: number; votes: number };
   // --- gamification (additive; absent in mock-less/legacy paths) ---
   reward?: VoteReward;

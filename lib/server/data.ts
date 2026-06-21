@@ -85,8 +85,35 @@ function toStackConfig(s: DbStack): StackConfig {
 // so this is a pure integrity measure against network-inspecting cheaters.
 const HIDDEN_STACK: StackConfig = { id: "hidden", name: "Hidden", stt: "—", llm: "—", tts: "—", turns: "—" };
 
+// Pull only the neutral (speaker/timing/text) part of the cached transcript. The spoiler fields
+// (stackName, outcome, bargeIn, isHuman) are deliberately dropped so captions can show pre-vote.
+function captionFrom(transcript: unknown): Clip["caption"] {
+  const events = (transcript as { events?: unknown })?.events;
+  if (!Array.isArray(events)) return undefined;
+  const caption = events
+    .filter(
+      (e): e is { speaker: "caller" | "agent"; start: number; end: number; text: string } =>
+        !!e &&
+        ((e as { speaker?: unknown }).speaker === "caller" || (e as { speaker?: unknown }).speaker === "agent") &&
+        typeof (e as { text?: unknown }).text === "string"
+    )
+    .map((e) => ({ speaker: e.speaker, start: Number(e.start) || 0, end: Number(e.end) || 0, text: e.text }));
+  return caption.length ? caption : undefined;
+}
+
+function outcomeFrom(transcript: unknown): string | undefined {
+  const outcome = (transcript as { outcome?: unknown })?.outcome;
+  return typeof outcome === "string" ? outcome : undefined;
+}
+
 function redactClip(clip: DbClip): Clip {
-  return { id: clip.id, url: clip.blobUrl, durationSec: clip.durationSec, stack: HIDDEN_STACK };
+  return {
+    id: clip.id,
+    url: clip.blobUrl,
+    durationSec: clip.durationSec,
+    stack: HIDDEN_STACK,
+    caption: captionFrom(clip.transcript),
+  };
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -370,6 +397,8 @@ export async function submitVote(
       A: toStackConfig(round.clipA.stack),
       B: toStackConfig(round.clipB.stack),
       insight: round.scenario.insight,
+      outcomeA: outcomeFrom(round.clipA.transcript),
+      outcomeB: outcomeFrom(round.clipB.transcript),
     },
     session: { accuracy, streak: session.streak, votes: session.votes },
     reward: economy ? { coins: economy.reward.coins, xp: economy.reward.xp, bonus: economy.reward.bonus, jackpot: economy.reward.jackpot } : undefined,

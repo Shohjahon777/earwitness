@@ -109,7 +109,11 @@ def vad_regions(samples: np.ndarray, frame_ms: int = 20, thresh_db: float = -38.
 def loudness_normalize(samples: np.ndarray, target_lufs: float = -16.0) -> np.ndarray:
     """Normalize to a target loudness so no clip wins on volume alone.
 
-    Uses pyloudnorm (ITU-R BS.1770) when available; otherwise an RMS-based approximation.
+    Uses pyloudnorm (ITU-R BS.1770) when available; otherwise a GATED RMS approximation that
+    ignores silent frames (an ungated mean is fooled by how much silence a clip contains). Peaks
+    are tamed with a tanh soft-clip rather than scaling the whole clip down — a hard rescale
+    undoes the loudness match unevenly (dense clips survive, sparse ones get quieter), which is
+    exactly the bias loudness-matching is meant to remove. See pipeline/loudness_match.py.
     """
     if samples.size == 0:
         return samples
@@ -123,18 +127,30 @@ def loudness_normalize(samples: np.ndarray, target_lufs: float = -16.0) -> np.nd
         out = pyln.normalize.loudness(samples.astype(np.float64), loudness, target_lufs)
         return _limit(out.astype(np.float32))
     except Exception:
-        rms = np.sqrt(np.mean(samples**2) + 1e-12)
-        # crude LUFS≈ -0.691 + 20log10(rms); solve gain for target
-        cur_lufs = -0.691 + 20 * np.log10(rms + 1e-12)
-        gain = 10 ** ((target_lufs - cur_lufs) / 20)
+        cur = _gated_rms_db(samples)
+        gain = 10 ** ((target_lufs - cur) / 20)
         return _limit((samples * gain).astype(np.float32))
 
 
+def _gated_rms_db(x: np.ndarray, frame_ms: int = 400, rel_gate_db: float = -10.0) -> float:
+    """Mean loudness over only the active frames (gates out silence)."""
+    f = int(frame_ms / 1000 * SR)
+    n = len(x) // f
+    if n == 0:
+        rms = np.sqrt(np.mean(x**2) + 1e-12)
+        return -0.691 + 20 * np.log10(rms + 1e-12)
+    e = np.array([np.sqrt(np.mean(x[i * f:(i + 1) * f] ** 2) + 1e-12) for i in range(n)])
+    db = 20 * np.log10(e + 1e-12)
+    keep = db > (db.max() + rel_gate_db)
+    return float(20 * np.log10(np.sqrt(np.mean(e[keep] ** 2)) + 1e-12))
+
+
 def _limit(samples: np.ndarray, ceiling: float = 0.97) -> np.ndarray:
-    peak = np.max(np.abs(samples)) + 1e-9
-    if peak > ceiling:
-        samples = samples * (ceiling / peak)
-    return samples
+    """tanh soft-clip: leaves quiet speech untouched, smoothly compresses only the peaks so the
+    loudness match survives (a global rescale would not)."""
+    if samples.size == 0:
+        return samples
+    return (ceiling * np.tanh(samples / ceiling)).astype(np.float32)
 
 
 def overlay(base: np.ndarray, clip: np.ndarray, at_s: float, gain: float = 1.0) -> np.ndarray:

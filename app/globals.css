@@ -614,6 +614,181 @@ button:disabled {
   font-size: 0.82rem;
 }
 
+/* Live synced caption under each clip (speaker-neutral, safe pre-vote) */
+.caption-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 2.6em;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(20, 19, 26, 0.4);
+  font-size: 0.88rem;
+  line-height: 1.35;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.caption-line[data-on="true"] {
+  border-color: color-mix(in srgb, var(--channel-color), transparent 55%);
+  background: color-mix(in srgb, var(--channel-color), transparent 92%);
+}
+
+.caption-who {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.caption-who[data-who="agent"] {
+  background: color-mix(in srgb, var(--channel-color), transparent 78%);
+  color: color-mix(in srgb, var(--channel-color), white 12%);
+}
+
+.caption-who[data-who="caller"] {
+  background: rgba(242, 240, 234, 0.08);
+  color: var(--text-muted);
+}
+
+.caption-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+/* Scenario brief: what's happening + what to listen for (collapsible) */
+.scenario-brief {
+  display: grid;
+  gap: 8px;
+  padding: 13px 14px;
+}
+
+.scenario-brief-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.scenario-brief-ic {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--signal), transparent 86%);
+  color: var(--signal);
+}
+
+.scenario-brief-titles {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.scenario-brief-tag {
+  color: var(--signal);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.scenario-brief-titles strong {
+  font-size: 1.05rem;
+  line-height: 1.15;
+}
+
+.scenario-brief-chev {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transition: transform 200ms ease;
+}
+
+.scenario-brief[data-open="true"] .scenario-brief-chev {
+  transform: rotate(180deg);
+}
+
+.scenario-brief-setup {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.scenario-brief-body {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.scenario-brief-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.scenario-brief-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.scenario-brief-list li::marker {
+  color: var(--signal);
+}
+
+.scenario-brief-vote {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--signal), transparent 90%);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+/* Per-channel turn-handling verdict in the reveal */
+.reveal-outcome {
+  margin: 0 0 10px;
+  font-size: 0.86rem;
+  color: var(--ok);
+}
+
+.reveal-outcome strong {
+  color: inherit;
+}
+
+.reveal-outcome[data-bad="true"] {
+  color: var(--danger);
+}
+
 .balance {
   display: grid;
   place-items: center;
@@ -1659,6 +1834,31 @@ button:disabled {
   }
   .channel-subline {
     font-size: 0.72rem;
+  }
+}
+
+/* Scenario brief + captions on phones */
+@media (max-width: 560px) {
+  .scenario-brief {
+    padding: 12px;
+  }
+  .scenario-brief-titles strong {
+    font-size: 0.98rem;
+  }
+  .scenario-brief-setup {
+    font-size: 0.86rem;
+  }
+  .caption-line {
+    font-size: 0.84rem;
+    padding: 7px 9px;
+  }
+}
+
+/* The clip's waveform is a touch shorter on phones so both clips + the brief fit above the
+   fixed vote bar without the tests feeling cramped. */
+@media (max-width: 679px) {
+  .wave-shell {
+    height: 72px;
   }
 }
 

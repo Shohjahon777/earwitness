@@ -8,7 +8,7 @@ import { readMockFlag } from "@/lib/mock-flags";
 import { useSessionStore } from "@/lib/store";
 import type { Channel, Mode, Pick, Round, VoteResult } from "@/lib/types";
 import { BalanceIndicator } from "@/components/BalanceIndicator";
-import { ScenarioChip } from "@/components/ScenarioChip";
+import { ScenarioBrief } from "@/components/ScenarioBrief";
 import { SessionStats } from "@/components/SessionStats";
 import { Toast } from "@/components/Toast";
 import { VoteBar } from "@/components/VoteBar";
@@ -155,11 +155,13 @@ export function RoundExperience({
     <div className="page-grid" data-layout="arena">
       <section style={{ display: "grid", gap: 14 }}>
         {mock === "offline" ? <Toast message="You're offline - votes will send when you reconnect." /> : null}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <ScenarioChip label={round.scenario.label} />
-          {typeof roundIndex === "number" ? <span className="font-mono muted">Round {roundIndex + 1}</span> : null}
-          {mode === "golden-ears" && !result ? <HintButton roundId={round.id} /> : null}
-        </div>
+        {typeof roundIndex === "number" || (mode === "golden-ears" && !result) ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            {typeof roundIndex === "number" ? <span className="font-mono muted">Round {roundIndex + 1} of 5</span> : <span />}
+            {mode === "golden-ears" && !result ? <HintButton roundId={round.id} /> : null}
+          </div>
+        ) : null}
+        <ScenarioBrief scenarioId={round.scenario.id} label={round.scenario.label} mode={mode} />
         <ClipCard
           channel="A"
           clip={round.clipA}

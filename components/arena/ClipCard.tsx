@@ -104,6 +104,7 @@ export function ClipCard({
             color={channelColor}
             durationSec={clip.durationSec}
             playing={active}
+            caption={clip.caption}
             label={`Channel ${channel}`}
             onProgress={(_, played) => {
               if (played) onPlayed(channel);

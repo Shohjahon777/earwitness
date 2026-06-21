@@ -78,8 +78,8 @@ export function RevealPanel({
           ) : null}
 
           <div style={{ display: "grid", gap: 10 }}>
-            <RevealStack channel="A" stack={result.reveal.A} />
-            <RevealStack channel="B" stack={result.reveal.B} />
+            <RevealStack channel="A" stack={result.reveal.A} outcome={result.reveal.outcomeA} />
+            <RevealStack channel="B" stack={result.reveal.B} outcome={result.reveal.outcomeB} />
           </div>
 
           <p className="muted" style={{ margin: 0 }}>
@@ -110,7 +110,7 @@ export function RevealPanel({
   );
 }
 
-function RevealStack({ channel, stack }: { channel: Channel; stack: StackConfig }) {
+function RevealStack({ channel, stack, outcome }: { channel: Channel; stack: StackConfig; outcome?: string }) {
   return (
     <section
       className="surface panel-pad"
@@ -122,6 +122,11 @@ function RevealStack({ channel, stack }: { channel: Channel; stack: StackConfig 
         </strong>
         {stack.isHuman ? <span className="stat-pill" style={{ color: "var(--human)" }}>Human</span> : null}
       </div>
+      {outcome && outcome !== "no interruption" ? (
+        <p className="reveal-outcome" data-bad={/talked over/i.test(outcome)}>
+          On the interruption, it <strong>{outcome}</strong>.
+        </p>
+      ) : null}
       <StackChips stack={stack} />
     </section>
   );
