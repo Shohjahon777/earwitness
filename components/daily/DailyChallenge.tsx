@@ -9,6 +9,7 @@ import { Coins } from "lucide-react";
 import { useSessionStore } from "@/lib/store";
 import { RoundProgress } from "@/components/RoundProgress";
 import { ShareCard } from "@/components/share/ShareCard";
+import { ShareButton } from "@/components/share/ShareButton";
 import { RoundExperience } from "@/components/arena/RoundExperience";
 import { AchievementToast } from "@/components/gamification/AchievementToast";
 
@@ -113,11 +114,17 @@ export function DailyChallenge() {
         </div>
         <ShareCard data={shareData} />
         <div style={{ display: "grid", gap: 10 }}>
-          <Link className="primary-btn" href={`/c/${shareData.stats.id}`}>
-            Share card
-          </Link>
-          <Link className="secondary-btn" href="/golden-ears">
-            Challenge a friend
+          <ShareButton
+            shareId={shareData.stats.id}
+            label="Challenge a friend"
+            text={
+              result
+                ? `I scored ${result.score}/5 spotting the AI on Earwitness. Can you beat me?`
+                : "Can you spot the AI? Try today's Earwitness challenge."
+            }
+          />
+          <Link className="secondary-btn" href={`/c/${shareData.stats.id}`}>
+            View my card
           </Link>
         </div>
         <AchievementToast achievements={result?.achievementsUnlocked} />

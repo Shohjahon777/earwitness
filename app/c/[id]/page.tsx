@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppChrome } from "@/components/AppChrome";
 import { ShareCard } from "@/components/share/ShareCard";
+import { ShareButton } from "@/components/share/ShareButton";
 import { getShareCard } from "@/lib/server/data";
 
 export async function generateMetadata({
@@ -31,7 +32,8 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
       <section className="page-grid">
         <ShareCard data={data} />
         <div style={{ display: "grid", gap: 10 }}>
-          <Link className="primary-btn" href="/daily">
+          <ShareButton shareId={id} label="Share this challenge" text={data.tagline} />
+          <Link className="secondary-btn" href="/daily">
             Can you beat it?
           </Link>
           <Link className="secondary-btn" href="/">
