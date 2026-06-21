@@ -56,7 +56,12 @@ export async function submitVote(roundId: string, pick: Pick): Promise<VoteResul
   });
 }
 
-export async function getDaily(): Promise<{ rounds: Round[]; alreadyDone: boolean; resetsAt: string }> {
+export async function getDaily(): Promise<{
+  rounds: Round[];
+  alreadyDone: boolean;
+  resetsAt: string;
+  previous?: { shareId: string; score: number; percentile: number };
+}> {
   if (useMock()) return mock.getDaily();
   return http("/api/daily");
 }

@@ -5,6 +5,7 @@ import type { AchievementView, DailyResultPayload, EarInfo, Me, QuestView, RankI
 
 interface SessionState {
   // core stats (existing)
+  handle: string;
   accuracy: number;
   streak: number;
   votes: number;
@@ -42,6 +43,7 @@ function mergeAchievements(current: AchievementView[], unlocked?: AchievementVie
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
+  handle: "",
   accuracy: 0,
   streak: 0,
   votes: 0,
@@ -61,6 +63,7 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   setProfile: (me) =>
     set({
+      handle: me.handle,
       accuracy: me.accuracy,
       streak: me.streak,
       votes: me.votes,

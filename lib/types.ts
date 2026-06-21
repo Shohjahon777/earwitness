@@ -148,6 +148,10 @@ export interface DailyResultPayload {
   score: number;
   percentile: number;
   shareId: string;
+  // real display fields (so the inline preview card matches the public /c/[id] page exactly)
+  handle?: string;
+  streak?: number;
+  accuracy?: number;
   coinsEarned?: number;
   xpEarned?: number;
   levelUp?: { level: number; rank: string };

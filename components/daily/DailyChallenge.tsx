@@ -20,9 +20,13 @@ export function DailyChallenge() {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<DailyAnswer[]>([]);
   const [result, setResult] = useState<DailyResultPayload | null>(null);
+  const [previous, setPrevious] = useState<{ shareId: string; score: number; percentile: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const applyDailyResult = useSessionStore((state) => state.applyDailyResult);
+  const handle = useSessionStore((s) => s.handle);
+  const streak = useSessionStore((s) => s.streak);
+  const storeAccuracy = useSessionStore((s) => s.accuracy);
 
   useEffect(() => {
     let alive = true;
@@ -35,6 +39,7 @@ export function DailyChallenge() {
         setRounds(daily.rounds);
         setAlreadyDone(daily.alreadyDone);
         setResetsAt(daily.resetsAt);
+        setPrevious(daily.previous ?? null);
       } catch (caught) {
         if (alive) setError(caught instanceof Error ? caught.message : "Daily challenge failed to load.");
       } finally {
@@ -48,21 +53,27 @@ export function DailyChallenge() {
   }, []);
 
   const current = rounds[index];
-  const shareData = useMemo(
-    () => ({
+  const shareData = useMemo(() => {
+    // Prefer the just-submitted result, else the prior result loaded from the server; both carry
+    // a real shareId so the buttons never share a placeholder link.
+    const src = result ?? previous;
+    const score = src?.score;
+    return {
       stats: {
-        id: result?.shareId ?? "daily-7f2",
-        handle: "Listener-7F2",
-        accuracy: result ? Math.round((result.score / 5) * 100) : 87,
-        score: result?.score ?? 4,
-        percentile: result?.percentile ?? 78,
-        streak: 3,
+        id: src?.shareId ?? "daily",
+        handle: (result?.handle ?? handle) || "Listener",
+        accuracy: result?.accuracy ?? (score != null ? Math.round((score / 5) * 100) : storeAccuracy),
+        score: score,
+        percentile: src?.percentile,
+        streak: result?.streak ?? streak,
         mode: "daily" as const
       },
-      tagline: result ? `I scored ${result.score}/5 in today's golden-ears challenge.` : "I already played today's golden-ears challenge."
-    }),
-    [result]
-  );
+      tagline:
+        score != null
+          ? `I scored ${score}/5 in today's golden-ears challenge.`
+          : "I already played today's golden-ears challenge."
+    };
+  }, [result, previous, handle, streak, storeAccuracy]);
 
   async function advance() {
     if (index < rounds.length - 1) {

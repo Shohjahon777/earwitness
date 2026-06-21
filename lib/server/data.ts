@@ -490,7 +490,9 @@ function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export async function getDaily(sessionId: string): Promise<{ rounds: Round[]; alreadyDone: boolean; resetsAt: string }> {
+export async function getDaily(
+  sessionId: string
+): Promise<{ rounds: Round[]; alreadyDone: boolean; resetsAt: string; previous?: { shareId: string; score: number; percentile: number } }> {
   const date = todayUtc();
   const existing = await prisma.dailyResult.findUnique({ where: { sessionId_date: { sessionId, date } } });
 
@@ -508,14 +510,30 @@ export async function getDaily(sessionId: string): Promise<{ rounds: Round[]; al
   }
   if (rounds.length === 0) throw new NoMatchupsError("Daily challenge is still cooking. Check back soon.");
 
-  return { rounds, alreadyDone: Boolean(existing), resetsAt: tomorrow.toISOString() };
+  return {
+    rounds,
+    alreadyDone: Boolean(existing),
+    resetsAt: tomorrow.toISOString(),
+    previous: existing
+      ? { shareId: existing.shareId, score: existing.score, percentile: existing.percentile }
+      : undefined,
+  };
 }
 
 export async function submitDaily(sessionId: string, answers: DailyAnswer[]): Promise<DailyResultPayload> {
   const date = todayUtc();
   const existing = await prisma.dailyResult.findUnique({ where: { sessionId_date: { sessionId, date } } });
   if (existing) {
-    return { score: existing.score, percentile: existing.percentile, shareId: existing.shareId };
+    const s = await prisma.session.findUniqueOrThrow({ where: { id: sessionId } });
+    const acc = s.geVotes > 0 ? Math.round((s.geCorrect / s.geVotes) * 100) : 0;
+    return {
+      score: existing.score,
+      percentile: existing.percentile,
+      shareId: existing.shareId,
+      handle: s.handle,
+      streak: s.streak,
+      accuracy: acc,
+    };
   }
 
   // Recompute correctness server-side from the persisted rounds — never trust the client.
@@ -607,6 +625,9 @@ export async function submitDaily(sessionId: string, answers: DailyAnswer[]): Pr
     score,
     percentile,
     shareId,
+    handle: session.handle,
+    streak: session.streak,
+    accuracy,
     coinsEarned: out.coinsEarned,
     xpEarned: out.xpEarned,
     levelUp: out.levelUp,
